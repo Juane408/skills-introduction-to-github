@@ -28,7 +28,17 @@ jobs:
         uses: actions/checkout@v4
       - id: get_step
         run: |
-          echo "current_step=$(cat ./.github/steps/-step.txt)" >> $GITHUB_OUTPUT
+          step_file="./.github/steps/-step.txt"
+          if [ ! -f "$step_file" ]; then
+            echo "::error::Step file not found at $step_file"
+            exit 1
+          fi
+          current_step="$(tr -d '[:space:]' < "$step_file")"
+          if [ -z "$current_step" ]; then
+            echo "::error::Step file is empty: $step_file"
+            exit 1
+          fi
+          echo "current_step=$current_step" >> $GITHUB_OUTPUT
     outputs:
       current_step: ${{ steps.get_step.outputs.current_step }}
 
