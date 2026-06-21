@@ -1,0 +1,64 @@
+name: Shared Step Update
+
+# Reusable workflow that encapsulates the duplicated logic across all step
+# workflows: reading the current step number and calling action-update-step.
+
+on:
+  workflow_call:
+    inputs:
+      from_step:
+        description: "Current step number the learner should be on"
+        required: true
+        type: string
+      to_step:
+        description: "Step number to advance to"
+        required: true
+        type: string
+      branch_name:
+        description: "Branch name passed to action-update-step"
+        required: false
+        type: string
+        default: "my-first-branch"
+      checkout_ref:
+        description: "Explicit ref to check out (leave empty for default behaviour)"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  get_current_step:
+    name: Check current step number
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - id: get_step
+        run: |
+          echo "current_step=$(cat ./.github/steps/-step.txt)" >> $GITHUB_OUTPUT
+    outputs:
+      current_step: ${{ steps.get_step.outputs.current_step }}
+
+  update_step:
+    name: Update to step ${{ inputs.to_step }}
+    needs: get_current_step
+    if: >-
+      ${{ !github.event.repository.is_template
+          && needs.get_current_step.outputs.current_step == inputs.from_step }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.checkout_ref || github.ref }}
+
+      - name: Update to step ${{ inputs.to_step }}
+        uses: skills/action-update-step@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          from_step: ${{ inputs.from_step }}
+          to_step: ${{ inputs.to_step }}
+          branch_name: ${{ inputs.branch_name }}
